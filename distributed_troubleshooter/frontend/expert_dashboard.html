@@ -1,0 +1,415 @@
+<!-- ✅ Final Expert Dashboard with WebSocket-triggered Feedback -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Expert Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      background-color: #fdfdfd;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .text-north { color: #6a5acd; }     .bg-north { background-color: #e6e6fa; }
+    .text-south { color: #c26a6a; }     .bg-south { background-color: #ffe4e1; }
+    .text-east  { color: #4caf8f; }     .bg-east  { background-color: #e0fff4; }
+    .text-west  { color: #b8860b; }     .bg-west  { background-color: #fff8dc; }
+
+    .card {
+      border: none;
+      border-radius: 12px;
+      background-color: #faf7fd;
+      box-shadow: 0 4px 10px rgba(185, 140, 200, 0.15);
+    }
+
+    .btn-primary {
+      background-color: #b798dc;
+      border-color: #b798dc;
+    }
+
+    .btn-primary:hover {
+      background-color: #a17acb;
+      border-color: #a17acb;
+    }
+
+    .btn-outline-danger {
+      border-color: #f5b5b5;
+      color: #cc4b4b;
+    }
+
+    .btn-outline-danger:hover {
+      background-color: #fce5e5;
+      color: #b02a2a;
+    }
+
+    .chat-box {
+      background-color: #f3edf9;
+      border: 1px solid #ddd;
+    }
+
+    .availability-toggle select {
+      background-color: #f4e8ff;
+      border: 1px solid #d4b1f2;
+    }
+
+    .star {
+      font-size: 22px;
+      cursor: pointer;
+      color: #bbb;
+    }
+
+    .star.selected {
+      color: #ffb84d;
+    }
+
+    .input-group .form-control {
+      border-radius: 6px 0 0 6px;
+    }
+
+    .input-group .btn {
+      border-radius: 0 6px 6px 0;
+    }
+
+    .form-control:focus {
+      border-color: #c69cf2;
+      box-shadow: 0 0 0 0.2rem rgba(198, 156, 242, 0.25);
+    }
+  </style>
+
+</head>
+<body class="bg-light">
+
+<div class="profile-icon">
+  <a href="profile.html" title="My Profile">👤</a>
+</div>
+
+<div class="container mt-5">
+  <h2 class="text-center mb-4">Welcome, Expert</h2>
+
+  <div class="text-center mb-4 availability-toggle">
+    <select class="form-select" id="availability" onchange="updateAvailability()">
+      <option disabled selected value="">-- Please choose your availability --</option>
+      <option value="available">🟢 Available</option>
+      <option value="busy">🔴 Busy</option>
+    </select>
+  </div>
+
+  <div class="text-center mb-4">
+    <button class="btn btn-primary" onclick="loadAssignments()">Load My Assignments</button>
+  </div>
+
+  <div id="assignments" class="mb-4"></div>
+
+  <div class="text-center">
+    <button class="btn btn-outline-danger" onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<!-- ⭐ Rating Modal -->
+<div class="modal fade" id="ratingModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content p-4">
+      <h5 class="modal-title">Rate the User</h5>
+      <input type="hidden" id="rating-user-id">
+      <div class="mb-3 text-center" id="rating-stars">
+        <span class="star" data-value="1">★</span>
+        <span class="star" data-value="2">★</span>
+        <span class="star" data-value="3">★</span>
+        <span class="star" data-value="4">★</span>
+        <span class="star" data-value="5">★</span>
+      </div>
+      <textarea id="rating-comment" class="form-control mb-3" placeholder="Leave a comment..."></textarea>
+      <div class="text-end">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="submitRating()">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const BASE_URL = "http://localhost:8000";
+  const token = localStorage.getItem("token");
+  const expertId = localStorage.getItem("user_id");
+  let selectedRating = 0;
+  let currentRatingIssueId = null;
+
+  function logout() {
+    localStorage.removeItem("token");
+    window.location.href = "index.html";
+  }
+
+  function updateAvailability() {
+    const status = document.getElementById("availability").value;
+    fetch(`${BASE_URL}/update_availability`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ availability: status })
+    })
+    .then(res => res.json())
+    .then(data => alert(data.message || "Availability updated."))
+    .catch(() => alert("Failed to update availability."));
+  }
+
+  function loadAssignments() {
+    fetch(`${BASE_URL}/expert_assignments`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => displayAssignments(data))
+    .catch(() => {
+      document.getElementById("assignments").innerHTML = "<p class='text-danger'>Failed to load assignments.</p>";
+    });
+  }
+
+  function displayAssignments(assignments) {
+    const container = document.getElementById("assignments");
+    container.innerHTML = "";
+
+    if (!assignments.length) {
+      container.innerHTML = "<p class='text-muted text-center'>No assignments found.</p>";
+      return;
+    }
+
+    assignments.forEach(issue => {
+      const isClosed = issue.status === "closed";
+      const chatId = `chat-${issue.issue_id}`;
+      const card = document.createElement("div");
+      card.className = "card mb-4 p-3 shadow-sm";
+      card.dataset.issueId = issue.issue_id;
+      card.dataset.userId = issue.submitted_by_id;
+
+      card.innerHTML = `
+        <h5>${issue.title}</h5>
+        <p><strong>Category:</strong> ${issue.category}</p>
+        <p><strong>Urgency:</strong> ${issue.urgency}</p>
+        <p><strong>Status:</strong> ${issue.status}</p>
+        <p><strong>Description:</strong> ${issue.description}</p>
+        <p><strong>Submitted By:</strong> ${issue.submitted_by}</p>
+        ${issue.status === 'assigned' ? `
+          <button class="btn btn-success me-2" onclick="acceptAssignment('${issue.issue_id}')">Accept</button>
+          <button class="btn btn-danger me-2" onclick="rejectAssignment('${issue.issue_id}')">Reject</button>
+        ` : ''}
+        ${(issue.status === 'in_progress' || issue.status === 'awaiting_user_confirmation') ? `
+          <textarea id="res-${issue.issue_id}" class="form-control mb-2" placeholder="Enter resolution..."></textarea>
+          <button class="btn btn-primary mb-2" onclick="submitResolution('${issue.issue_id}')">Submit Resolution</button>
+          <button class="btn btn-outline-success" onclick="markDone('${issue.issue_id}')">Mark as Done</button>
+        ` : ''}
+        <div class="chat-box" id="${chatId}">Loading chat...</div>
+        <div class="input-group mt-2">
+          <input type="text" class="form-control" id="msg-${issue.issue_id}" placeholder="Type a message...">
+          <button class="btn btn-outline-primary" onclick="sendMessage('${issue.issue_id}')">Send</button>
+        </div>
+      `;
+      container.appendChild(card);
+
+      if (!isClosed) loadChat(issue.issue_id);
+    });
+  }
+
+  function rejectAssignment(issueId) {
+    fetch(`${BASE_URL}/reject_issue`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ issue_id: issueId })
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message || "Issue rejected.");
+      loadAssignments();
+    })
+    .catch(() => alert("Failed to reject issue."));
+  }
+
+  function loadChat(issueId) {
+    fetch(`${BASE_URL}/messages/${issueId}`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+    .then(res => res.status === 404 ? [] : res.json())
+    .then(messages => {
+      if (!Array.isArray(messages)) {
+        console.error("Expected array, got:", messages);
+        return;
+      }
+      const box = document.getElementById(`chat-${issueId}`);
+      if (!box) return;
+      box.innerHTML = "";
+      messages.forEach(msg => {
+        const bubble = document.createElement("div");
+        bubble.className = "mb-1";
+        bubble.innerHTML = `<strong>${msg.sender_role}:</strong> ${msg.content}`;
+        box.appendChild(bubble);
+      });
+      box.scrollTop = box.scrollHeight;
+    })
+    .catch(() => console.warn(`❌ Chat not loaded for ${issueId}`));
+  }
+
+  function sendMessage(issueId) {
+    const input = document.getElementById(`msg-${issueId}`);
+    const content = input.value.trim();
+    if (!content) return;
+
+    fetch(`${BASE_URL}/messages/${issueId}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ message: content })
+    })
+    .then(res => res.json())
+    .then(() => {
+      input.value = "";
+      loadChat(issueId);
+    });
+  }
+
+  function acceptAssignment(issue_id) {
+    fetch(`${BASE_URL}/accept_assignment`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ issue_id })
+    })
+    .then(res => res.json())
+    .then(() => {
+      alert("Assignment accepted.");
+      loadAssignments();
+    })
+    .catch(() => alert("Failed to accept."));
+  }
+
+  function submitResolution(issue_id) {
+    const notes = document.getElementById(`res-${issue_id}`).value;
+    fetch(`${BASE_URL}/submit_resolution`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ issue_id, resolution_notes: notes })
+    })
+    .then(res => res.json())
+    .then(() => {
+      alert("Resolution submitted. Please mark the issue as done.");
+      loadAssignments();
+    })
+    .catch(() => alert("Failed to submit resolution."));
+  }
+
+  function markDone(issueId) {
+    const card = document.querySelector(`[data-issue-id="${issueId}"]`);
+    const userId = card.dataset.userId;
+
+    fetch(`${BASE_URL}/mark_done/${issueId}`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === "closed" && data.request_feedback) {
+        currentRatingIssueId = issueId;
+        document.getElementById("rating-user-id").value = userId;
+        selectedRating = 0;
+        document.getElementById("rating-comment").value = "";
+        document.querySelectorAll(".star").forEach(star => star.classList.remove("selected"));
+        new bootstrap.Modal(document.getElementById("ratingModal")).show();
+      } else {
+        alert("Marked as done. Waiting for user to confirm.");
+      }
+      loadAssignments();
+    })
+    .catch(() => alert("Failed to mark done."));
+  }
+
+  function submitRating() {
+    const user_id = document.getElementById("rating-user-id").value;
+    const comment = document.getElementById("rating-comment").value;
+    if (!selectedRating) return alert("Please select a rating.");
+
+    fetch(`${BASE_URL}/rate_user`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        issue_id: currentRatingIssueId,
+        user_id,
+        rating: selectedRating,
+        comment
+      })
+    })
+    .then(res => res.json())
+    .then(() => {
+      alert("User rated successfully.");
+      bootstrap.Modal.getInstance(document.getElementById("ratingModal")).hide();
+      loadAssignments();
+    })
+    .catch(() => alert("Failed to submit rating."));
+  }
+
+  document.querySelectorAll(".star").forEach(star => {
+    star.addEventListener("click", () => {
+      selectedRating = parseInt(star.dataset.value);
+      document.querySelectorAll(".star").forEach(s => s.classList.remove("selected"));
+      for (let i = 0; i < selectedRating; i++) {
+        document.querySelectorAll(".star")[i].classList.add("selected");
+      }
+    });
+  });
+
+  window.onload = () => {
+    loadAssignments();
+
+    if (!expertId) return console.error("Expert ID not found");
+
+    const ws = new WebSocket(`ws://localhost:8000/ws/${expertId}`);
+    ws.onopen = () => console.log("✅ WebSocket connected");
+    ws.onerror = err => console.error("❌ WebSocket error", err);
+    ws.onclose = () => console.log("🔌 WebSocket disconnected");
+
+    ws.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        const { event: eventName, data: payload } = parsed;
+
+        console.log("📡 WS:", eventName, payload);
+
+        if (eventName === "issue_closed" && payload.issue_id) {
+          const userId = document.querySelector(`[data-issue-id="${payload.issue_id}"]`)?.dataset?.userId || "";
+          if (userId) {
+            currentRatingIssueId = payload.issue_id;
+            document.getElementById("rating-user-id").value = userId;
+            selectedRating = 0;
+            document.getElementById("rating-comment").value = "";
+            document.querySelectorAll(".star").forEach(star => star.classList.remove("selected"));
+            new bootstrap.Modal(document.getElementById("ratingModal")).show();
+          }
+        }
+
+        if (eventName === "new_message" && payload.issue_id) {
+          loadChat(payload.issue_id);
+        } else {
+          loadAssignments();
+        }
+      } catch (err) {
+        console.error("⚠️ Invalid WS data:", event.data);
+      }
+    };
+  };
+</script>
+
+</body>
+</html>

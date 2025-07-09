@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login / Signup</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      background-color: #fdfdfd;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    h2 {
+      color: #865fc5;
+      font-weight: 600;
+    }
+
+    .card {
+      border: none;
+      border-radius: 12px;
+      background-color: #f7f2fc;
+      box-shadow: 0 4px 10px rgba(150, 130, 200, 0.15);
+    }
+
+    .form-control, .form-select {
+      border-radius: 8px;
+      border: 1px solid #d6c2ef;
+      background-color: #fcfbfe;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: #b798dc;
+      box-shadow: 0 0 0 0.2rem rgba(183, 152, 220, 0.25);
+    }
+
+    .btn.btn-w-100, .btn-success {
+      background-color: #c69cf2;
+      border-color: #c69cf2;
+      color: white;
+      width: 100%;
+    }
+
+    .btn.btn-w-100:hover, .btn-success:hover {
+      background-color: #b185e9;
+      border-color: #b185e9;
+    }
+
+    .btn-outline-secondary {
+      border-color: #d3d3d3;
+    }
+
+    .form-check-input:checked {
+      background-color: #b798dc;
+      border-color: #b798dc;
+    }
+
+    a {
+      color: #a87adb;
+    }
+
+    a:hover {
+      text-decoration: underline;
+      color: #865fc5;
+    }
+
+    .text-north { color: #6a5acd; }     .bg-north { background-color: #e6e6fa; }
+    .text-south { color: #c26a6a; }     .bg-south { background-color: #ffe4e1; }
+    .text-east  { color: #4caf8f; }     .bg-east  { background-color: #e0fff4; }
+    .text-west  { color: #b8860b; }     .bg-west  { background-color: #fff8dc; }
+
+    .badge-status {
+      padding: 0.4em 0.6em;
+      border-radius: 1em;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .badge-assigned { background-color: #c3e6cb; color: #155724; }
+    .badge-pending  { background-color: #ffeeba; color: #856404; }
+    .badge-closed   { background-color: #d6d8d9; color: #383d41; }
+    .badge-rerouted { background-color: #d1ecf1; color: #0c5460; }
+    .badge-rejected { background-color: #f8d7da; color: #721c24; }
+  </style>
+
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <h2 class="text-center mb-4" id="form-title">Login</h2>
+
+    <!-- LOGIN FORM -->
+    <div class="card p-4" id="login-form">
+      <div class="mb-3">
+        <label>Email</label>
+        <input id="login-email" class="form-control" type="email">
+      </div>
+
+      <div class="mb-3">
+        <label>Password</label>
+        <input id="login-password" class="form-control" type="password">
+        <div class="form-check mt-1">
+          <input class="form-check-input" type="checkbox" id="login-show-pass" onclick="togglePassword('login-password')">
+          <label class="form-check-label" for="login-show-pass">Show password</label>
+        </div>
+      </div>
+
+      <button class="btn btn-w-100 text-white mb-2" onclick="login()">Login</button>
+
+      <p class="text-center">Don’t have an account? <a href="#" onclick="showSignup()">Sign up</a></p>
+
+      <div id="login-message" class="mt-2 text-danger text-center"></div>
+    </div>
+
+    <!-- SIGNUP FORM -->
+    <div class="card p-4" id="signup-form" style="display:none;">
+      <div class="mb-3">
+        <label>Name</label>
+        <input id="signup-name" class="form-control" type="text">
+      </div>
+
+      <div class="mb-3">
+        <label>Email</label>
+        <input id="signup-email" class="form-control" type="email">
+      </div>
+
+      <div class="mb-3">
+        <label>Password</label>
+        <input id="signup-password" class="form-control" type="password">
+        <div class="form-check mt-1">
+          <input class="form-check-input" type="checkbox" id="signup-show-pass" onclick="togglePassword('signup-password')">
+          <label class="form-check-label" for="signup-show-pass">Show password</label>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label>Role</label>
+        <select id="signup-role" class="form-select">
+          <option value="user">User</option>
+          <option value="expert">Expert</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label>Region</label>
+        <select id="region" class="form-select">
+          <option value="north">North</option>
+          <option value="south">South</option>
+          <option value="east">East</option>
+          <option value="west">West</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label>Expertise Tags (comma-separated)</label>
+        <input id="signup-tags" class="form-control" type="text" placeholder="e.g., database, cloud, python">
+      </div>
+
+      <button class="btn btn-success w-100 mb-2" onclick="signup()">Sign up</button>
+
+      <p class="text-center">Already have an account? <a href="#" onclick="showLogin()">Login</a></p>
+
+      <div id="signup-message" class="mt-2 text-danger text-center"></div>
+    </div>
+  </div>
+
+  <!-- ✅ Load auth.js FIRST -->
+  <script src="js/auth.js"></script>
+
+  <!-- ✅ Then define helpers -->
+  <script>
+    function togglePassword(inputId) {
+      const field = document.getElementById(inputId);
+      field.type = field.type === "password" ? "text" : "password";
+    }
+
+    function showSignup() {
+      document.getElementById("login-form").style.display = "none";
+      document.getElementById("signup-form").style.display = "block";
+      document.getElementById("form-title").innerText = "Sign Up";
+    }
+
+    function showLogin() {
+      document.getElementById("signup-form").style.display = "none";
+      document.getElementById("login-form").style.display = "block";
+      document.getElementById("form-title").innerText = "Login";
+    }
+  </script>
+
+</body>
+</html>

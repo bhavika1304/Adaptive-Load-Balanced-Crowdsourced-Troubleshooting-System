@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pymongo
+python-dotenv
+spacy
+python-jose
+bcrypt
+uvicorn[standard]
+sentence-transformers

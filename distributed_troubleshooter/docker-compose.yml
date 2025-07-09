@@ -1,0 +1,93 @@
+services:
+
+  # ---------- NORTH NODE ----------
+  north_app:
+    build: ./north
+    container_name: north_app
+    environment:
+      - MONGO_URI=mongodb://north_db:27017
+      - NODE_NAME=north
+    ports:
+      - "8001:8000"
+    depends_on:
+      - north_db
+    networks:
+      - node_net
+
+  north_db:
+    image: mongo
+    container_name: north_db
+    ports:
+      - "27017"
+    networks:
+      - node_net
+
+  # ---------- SOUTH NODE ----------
+  south_app:
+    build: ./south
+    container_name: south_app
+    environment:
+      - MONGO_URI=mongodb://south_db:27017
+      - NODE_NAME=south
+    ports:
+      - "8002:8000"
+    depends_on:
+      - south_db
+    networks:
+      - node_net
+
+  south_db:
+    image: mongo
+    container_name: south_db
+    ports:
+      - "27018"
+    networks:
+      - node_net
+
+  # ---------- EAST NODE ----------
+  east_app:
+    build: ./east
+    container_name: east_app
+    environment:
+      - MONGO_URI=mongodb://east_db:27017
+      - NODE_NAME=east
+    ports:
+      - "8003:8000"
+    depends_on:
+      - east_db
+    networks:
+      - node_net
+
+  east_db:
+    image: mongo
+    container_name: east_db
+    ports:
+      - "27019"
+    networks:
+      - node_net
+
+  # ---------- WEST NODE ----------
+  west_app:
+    build: ./west
+    container_name: west_app
+    environment:
+      - MONGO_URI=mongodb://west_db:27017
+      - NODE_NAME=west
+    ports:
+      - "8004:8000"
+    depends_on:
+      - west_db
+    networks:
+      - node_net
+
+  west_db:
+    image: mongo
+    container_name: west_db
+    ports:
+      - "27020"
+    networks:
+      - node_net
+
+networks:
+  node_net:
+    driver: bridge
