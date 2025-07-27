@@ -1,7 +1,5 @@
 # Adaptive-Load-Balanced-Crowdsourced-Troubleshooting-System
 
-# 🔧 Adaptive Load-Balanced Crowdsourced Troubleshooting System
-
 ## 🧠 Overview
 
 In today’s digital-first world, users rely heavily on support systems when facing technical issues — but most helpdesk platforms suffer from centralized bottlenecks, overloaded experts, and zero fault tolerance. As user bases scale across regions and time zones, traditional support models begin to collapse under pressure, leading to slow response times, poor user experience, and unresolved issues.
